@@ -167,6 +167,11 @@ impl<D: Drive> Ring<D> {
     }
 
     #[inline(always)]
+    pub(crate) fn driver(self: Pin<&mut Self>) -> Pin<&mut D> {
+        unsafe { Pin::map_unchecked_mut(self, |this| &mut this.driver) }
+    }
+
+    #[inline(always)]
     fn state(self: Pin<&mut Self>) -> Pin<&mut State> {
         unsafe { Pin::map_unchecked_mut(self, |this| &mut this.state) }
     }
