@@ -66,7 +66,7 @@ impl<E: Event, D: Drive> Submission<E, D> {
         let this = Pin::get_unchecked_mut(self);
         if let Some(result) = this.completion.check() {
             this.state = State::Complete;
-            this.completion.deallocate();
+            this.completion.take().deallocate();
             let event = ManuallyDrop::take(&mut this.event);
             let driver = ManuallyDrop::take(&mut this.driver);
             Poll::Ready((event, driver, result))
@@ -139,7 +139,7 @@ impl<E: Event, D> Drop for Submission<E, D> {
     fn drop(&mut self) {
         unsafe {
             if matches!(self.state, State::Prepared | State::Submitted) {
-                self.completion.cancel(Event::cancellation(&mut self.event));
+                self.completion.take().cancel(Event::cancellation(&mut self.event));
             } else if self.state == State::Waiting {
                 ManuallyDrop::drop(&mut self.event);
             }
@@ -173,7 +173,7 @@ unsafe fn prepare<'cx, E: Event>(
 
     let mut sqe = SubmissionCleaner(sqe);
     event.prepare(&mut sqe.0);
-    
+
     // NB: State is put into the `Lost` state in case the driver fails to fulfill its side of the
     // contract and return the Completion back to us. In the Lost state, future attempts to poll
     // the submission will panic.
@@ -184,4 +184,3 @@ unsafe fn prepare<'cx, E: Event>(
     mem::forget(sqe);
     ExternalCompletion::new(completion, ctx)
 }
-
